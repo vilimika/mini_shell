@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +13,7 @@
 void interactive();
 char *get_command();
 char **parse_cmd(char*);
+int execute_command(char**);
 
 int main(int argc, char **argv)
 {
@@ -30,11 +33,16 @@ void interactive()
 		printf("prompt> ");
 		command = get_command();
 		args = parse_cmd(command);
-//	/* 
+		control = execute_command(args);		
+	//test to see if the args array was made correctly
+	/* 
 		int z = 0;
-		for(;z < 3;z++)
+		for(;z < 2;z++)
 			printf("%s\n", args[z]);
-//	*/	
+	*/	
+	//************************************************
+		
+
 	}
 }
 
@@ -98,6 +106,45 @@ char **parse_cmd(char* command)
 }
 
 
+//this function uses execvp to execute commands 
+int execute_command(char **args)
+{
+	//check for exit or barrier
+	if(!args[1])
+	{
+		if(strcmp(args[0],"exit") == 0)
+			exit(EXIT_SUCCESS);
+	}
+
+	int status;
+	pid_t wait_pid, pid = fork();
+
+	//check if fork created child
+	if(pid == -1)
+	{
+		perror("fork");
+		exit(EXIT_FAILURE);
+	}
+	//child - run the specifiend command
+	else if(pid == 0)
+	{
+		if(execvp(args[0], args) == -1)
+		{
+			perror("execute_command");
+			exit(EXIT_FAILURE);
+		}
+	}
+	//parent
+	else
+	{
+		do
+		{
+			wait_pid = waitpid(pid, &status, WUNTRACED);
+		} while (!WIFEXITED(status) && !WIFSIGNALED(status)); 
+	}
+	
+	return 1;
+}
 
 
 
