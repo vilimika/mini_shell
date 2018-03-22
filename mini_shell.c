@@ -33,7 +33,10 @@ void interactive()
 		printf("prompt> ");
 		command = get_command();
 		args = parse_cmd(command);
-		control = execute_command(args);		
+		control = execute_command(args);
+
+		free(command);
+		free(args);
 	//test to see if the args array was made correctly
 	/* 
 		int z = 0;
@@ -82,7 +85,7 @@ char **parse_cmd(char* command)
 	int i = 0, buf_size = BUFSIZE_ARGS;
 	char **args = malloc(sizeof(char*) * buf_size);
 	char *token , *delim;
-	delim = " \t";
+	delim = " \t\n\r";
 	
 	//check if malloc did the magic
 	if(!args)
@@ -91,6 +94,7 @@ char **parse_cmd(char* command)
 		exit(EXIT_FAILURE);
 	}
 
+
 	//parse the string
 	token = strtok(command, delim);
 	while(token != NULL)
@@ -98,10 +102,12 @@ char **parse_cmd(char* command)
 		args[i] = token;
 		token = strtok(NULL, delim);
 		i++;
+		if(token == NULL){break;}
 	}
-
-	i++;
+	
+	
 	args[i] = NULL;
+//	printf("%s placeholder %i %s %s\n", args[0], i, args[1], args[2]);
 	return args;
 }
 
@@ -109,6 +115,9 @@ char **parse_cmd(char* command)
 //this function uses execvp to execute commands 
 int execute_command(char **args)
 {
+	//if no args provided go back to prompt
+	if(!args[0] && !args[1])
+		return 1;
 	//check for exit or barrier
 	if(!args[1])
 	{
@@ -130,11 +139,11 @@ int execute_command(char **args)
 	{
 		if(execvp(args[0], args) == -1)
 		{
-			perror("execute_command");
+			perror("mini shell");
 			exit(EXIT_FAILURE);
 		}
 	}
-	//parent
+	//parent - wait for child to execute
 	else
 	{
 		do
