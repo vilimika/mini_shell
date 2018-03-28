@@ -12,8 +12,8 @@
 
 void interactive();
 char *get_command();
-char **parse_cmd(char*);
-int execute_command(char**);
+char **parse_cmd(char*, int*);
+int execute_command(char**, int);
 
 int main(int argc, char **argv)
 {
@@ -26,15 +26,17 @@ void interactive()
 {
 	char *command;
 	char **args;
-	int control = 1;
+	int control = 1, status;
 
 	while(control)
 	{
+		waitpid(-1, &status, WNOHANG);
+		int bg = 0, *p_bg = &bg;
 		printf("prompt> ");
 		command = get_command();
-		args = parse_cmd(command);
-		control = execute_command(args);
-
+		args = parse_cmd(command, p_bg);
+		control = execute_command(args, bg);
+		
 		free(command);
 		free(args);
 	//test to see if the args array was made correctly
@@ -80,7 +82,7 @@ char *get_command()
 }
 
 //this function parses the command from get_command to make argv
-char **parse_cmd(char* command)
+char **parse_cmd(char* command, int *bg)
 {
 	int i = 0, buf_size = BUFSIZE_ARGS;
 	char **args = malloc(sizeof(char*) * buf_size);
@@ -101,8 +103,15 @@ char **parse_cmd(char* command)
 	{
 		args[i] = token;
 		token = strtok(NULL, delim);
+		if(token != NULL)
+		{
+			if(strcmp(token, "&") == 0)
+			{
+				(*bg)++;
+				token = strtok(NULL, delim);
+			}
+		}
 		i++;
-		if(token == NULL){break;}
 	}
 	
 	
@@ -113,7 +122,7 @@ char **parse_cmd(char* command)
 
 
 //this function uses execvp to execute commands 
-int execute_command(char **args)
+int execute_command(char **args, int bg)
 {
 	//if no args provided go back to prompt
 	if(!args[0] && !args[1])
@@ -121,13 +130,14 @@ int execute_command(char **args)
 	//check for exit or barrier
 	if(!args[1])
 	{
-		if(strcmp(args[0],"exit") == 0)
+		if(strcmp(args[0],"quit") == 0)
 			exit(EXIT_SUCCESS);
 	}
 
 	int status;
 	pid_t wait_pid, pid = fork();
 
+	
 	//check if fork created child
 	if(pid == -1)
 	{
@@ -137,6 +147,8 @@ int execute_command(char **args)
 	//child - run the specifiend command
 	else if(pid == 0)
 	{
+		if(bg == 1) {fclose(stdout); fclose(stderr);}
+	
 		if(execvp(args[0], args) == -1)
 		{
 			perror("mini shell");
@@ -146,18 +158,17 @@ int execute_command(char **args)
 	//parent - wait for child to execute
 	else
 	{
+		if(bg == 1)
+		{	
+			return 1;
+		}
+		
 		do
 		{
 			wait_pid = waitpid(pid, &status, WUNTRACED);
 		} while (!WIFEXITED(status) && !WIFSIGNALED(status)); 
 	}
-	
+
 	return 1;
 }
-
-
-
-
-
-
 
