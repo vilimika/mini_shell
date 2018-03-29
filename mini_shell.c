@@ -26,15 +26,20 @@ void interactive()
 {
 	char *command;
 	char **args;
-	int control = 1, status;
+	int control = 1, status = 0;
 
 	while(control)
 	{
-		waitpid(-1, &status, WNOHANG);
+		//waitpid(-1, &status, WNOHANG);
 		int bg = 0, *p_bg = &bg;
 		printf("prompt> ");
 		command = get_command();
 		args = parse_cmd(command, p_bg);
+		if(strcmp(args[0], "barrier") == 0)
+		{
+			while ((waitpid(-1,&status,0))!=-1);
+			continue;
+		}
 		control = execute_command(args, bg);
 		
 		free(command);
@@ -134,10 +139,9 @@ int execute_command(char **args, int bg)
 			exit(EXIT_SUCCESS);
 	}
 
-	int status;
+	int status = 0;
 	pid_t wait_pid, pid = fork();
 
-	
 	//check if fork created child
 	if(pid == -1)
 	{
