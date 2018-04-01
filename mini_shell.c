@@ -12,8 +12,8 @@
 
 void interactive();
 char *get_command();
-char **parse_cmd(char*, int*);
-int execute_command(char**, int);
+char **parse_cmd(char*, int*, char**, int*);
+int execute_command(char**, int, int, char*);
 
 int main(int argc, char **argv)
 {
@@ -30,17 +30,22 @@ void interactive()
 
 	while(control)
 	{
-		//waitpid(-1, &status, WNOHANG);
 		int bg = 0, *p_bg = &bg;
+		int rd = 0, *p_rd = &rd;
+		char *rd_path = NULL;
 		printf("prompt> ");
 		command = get_command();
-		args = parse_cmd(command, p_bg);
-		if(strcmp(args[0], "barrier") == 0)
+		args = parse_cmd(command, p_bg, &rd_path, p_rd);
+		if(args[0])
 		{
-			while ((waitpid(-1,&status,0))!=-1);
-			continue;
+			if(strcmp(args[0], "barrier") == 0)
+			{
+				while ((waitpid(-1, &status, 0)) != -1);
+				continue;
+			}
 		}
-		control = execute_command(args, bg);
+//		printf("%s%i\n", rd_path, rd);
+		control = execute_command(args, bg, rd, rd_path);
 		
 		free(command);
 		free(args);
@@ -87,7 +92,7 @@ char *get_command()
 }
 
 //this function parses the command from get_command to make argv
-char **parse_cmd(char* command, int *bg)
+char **parse_cmd(char* command, int *bg, char **rd_path, int *rd)
 {
 	int i = 0, buf_size = BUFSIZE_ARGS;
 	char **args = malloc(sizeof(char*) * buf_size);
@@ -115,6 +120,18 @@ char **parse_cmd(char* command, int *bg)
 				(*bg)++;
 				token = strtok(NULL, delim);
 			}
+			
+			if(token != NULL)
+			{
+				if(strcmp(token, ">") == 0)	
+				{
+					(*rd)++;
+					token = strtok(NULL, delim);
+					*rd_path = (char *) malloc(strlen(token) + 1);
+					strcpy(*rd_path, token);
+					token = strtok(NULL, delim);
+				}
+			}
 		}
 		i++;
 	}
@@ -127,7 +144,7 @@ char **parse_cmd(char* command, int *bg)
 
 
 //this function uses execvp to execute commands 
-int execute_command(char **args, int bg)
+int execute_command(char **args, int bg, int rd, char *rd_path)
 {
 	//if no args provided go back to prompt
 	if(!args[0] && !args[1])
@@ -151,7 +168,15 @@ int execute_command(char **args, int bg)
 	//child - run the specifiend command
 	else if(pid == 0)
 	{
-		if(bg == 1) {fclose(stdout); fclose(stderr);}
+		
+		if(rd == 1)
+		{
+			int fd;
+			fd = open(rd_path, O_CREAT | O_TRUNC | O_WRONLY, 0766 );
+			dup2(fd, 1);
+			close(fd);
+		}
+
 	
 		if(execvp(args[0], args) == -1)
 		{
