@@ -14,11 +14,15 @@ void interactive();
 char *get_command();
 char **parse_cmd(char*, int*, char**, int*);
 int execute_command(char**, int, int, char*);
+void batch_mode(char*);
 
 int main(int argc, char **argv)
-{
+{	
+	if(argc > 2) {printf("Too many arguments provided"); exit(EXIT_FAILURE);}
 	if(argc == 1) interactive();
+	if(argc == 2) batch_mode(argv[1]);
 	
+	return 0;
 }
 
 //this fucntion controls the execution of interactive mode
@@ -173,7 +177,8 @@ int execute_command(char **args, int bg, int rd, char *rd_path)
 		{
 			int fd;
 			fd = open(rd_path, O_CREAT | O_TRUNC | O_WRONLY, 0766 );
-			dup2(fd, 1);
+			if(fd == -1) {perror("Output file error");}
+			if(dup2(fd, 1) == -1) {perror("dup2 error duplicating file descriptor");}
 			close(fd);
 		}
 
@@ -201,3 +206,38 @@ int execute_command(char **args, int bg, int rd, char *rd_path)
 	return 1;
 }
 
+//function reads a file and executes commands specified in the file
+void batch_mode(char *file)
+{
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	char *command, **args;
+	int status = 0, control = 1;
+
+	fp = fopen(file, "r");
+	if(fp == NULL) {perror("batch file open error"); return;}
+
+	while((read = getline(&line, &len, fp)) != -1)
+	{
+		int bg, *p_bg = &bg;
+		int rd, *p_rd = &rd;
+		char *rd_path = NULL;
+		printf("Executing: %s", line);
+		args = parse_cmd(line, p_bg, &rd_path, p_rd);
+		printf("%s %s\n", args[0], args[1]);	
+		if(args[0])
+		{
+			if(strcmp(args[0], "barrier") == 0)
+			{
+				while((waitpid(-1, &status, 0 )) != -1);
+				continue;
+			}
+		}	
+		printf("%s %s\n", args[0], args[1]);	
+		control = execute_command(args, bg, rd, rd_path);
+
+		free(args);
+	}
+}
