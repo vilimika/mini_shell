@@ -137,12 +137,14 @@ char **parse_cmd(char* command, int *bg, char **rd_path, int *rd)
 				}
 			}
 		}
+//		if(token != NULL)
+//		printf("%s\n", token);
 		i++;
 	}
 	
 	
 	args[i] = NULL;
-//	printf("%s placeholder %i %s %s\n", args[0], i, args[1], args[2]);
+	//printf("%s %s %s %s\n", args[0], i, args[1], args[2], args[3]);
 	return args;
 }
 
@@ -150,6 +152,7 @@ char **parse_cmd(char* command, int *bg, char **rd_path, int *rd)
 //this function uses execvp to execute commands 
 int execute_command(char **args, int bg, int rd, char *rd_path)
 {
+
 	//if no args provided go back to prompt
 	if(!args[0] && !args[1])
 		return 1;
@@ -226,7 +229,6 @@ void batch_mode(char *file)
 		char *rd_path = NULL;
 		printf("Executing: %s", line);
 		args = parse_cmd(line, p_bg, &rd_path, p_rd);
-		printf("%s %s\n", args[0], args[1]);	
 		if(args[0])
 		{
 			if(strcmp(args[0], "barrier") == 0)
@@ -235,7 +237,6 @@ void batch_mode(char *file)
 				continue;
 			}
 		}	
-		printf("%s %s\n", args[0], args[1]);	
 		control = execute_command(args, bg, rd, rd_path);
 
 		free(args);
